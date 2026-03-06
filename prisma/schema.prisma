@@ -1,0 +1,460 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────
+
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum UserRole {
+  ADMIN
+  DONOR
+  PATIENT
+  BLOOD_BANK
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum BloodBankStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BloodRequestStatus {
+  OPEN
+  PARTIALLY_FULFILLED
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum BloodRequestUrgency {
+  NORMAL
+  URGENT
+  EMERGENCY
+}
+
+enum DonationOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CampaignStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  BLOOD_REQUEST
+  EMERGENCY_REQUEST
+  DONATION_REMINDER
+  CAMPAIGN_ANNOUNCEMENT
+  SHORTAGE_ALERT
+  DONATION_OFFER
+  CHAT_MESSAGE
+  BADGE_EARNED
+  POINTS_EARNED
+  SYSTEM
+}
+
+enum ChatMessageType {
+  TEXT
+  IMAGE
+  LOCATION
+  SYSTEM
+}
+
+enum StockLevel {
+  CRITICAL
+  LOW
+  ADEQUATE
+  HIGH
+}
+
+enum BadgeType {
+  FIRST_DONATION
+  FIVE_DONATIONS
+  TEN_DONATIONS
+  TWENTY_FIVE_DONATIONS
+  FIFTY_DONATIONS
+  LIFE_SAVER
+  SPEED_HERO
+  CONSISTENT_DONOR
+  CAMPAIGN_CHAMPION
+  COMMUNITY_PILLAR
+}
+
+// ─── MODELS ──────────────────────────────────────────────
+
+model Admin {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  isSuperAdmin Boolean   @default(false) @map("is_super_admin")
+  isActive     Boolean   @default(true) @map("is_active")
+  refreshToken String?   @map("refresh_token")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+model Donor {
+  id               String    @id @default(uuid())
+  deviceId         String    @unique @map("device_id")
+  name             String
+  mobile           String?
+  bloodType        BloodType @map("blood_type")
+  gender           Gender?
+  dateOfBirth      DateTime? @map("date_of_birth")
+  latitude         Float
+  longitude        Float
+  isAvailable      Boolean   @default(true) @map("is_available")
+  lastDonationDate DateTime? @map("last_donation_date")
+  fcmToken         String?   @map("fcm_token")
+  totalDonations   Int       @default(0) @map("total_donations")
+  points           Int       @default(0)
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  donationOffers        DonationOffer[]
+  donations             Donation[]
+  badges                DonorBadge[]
+  campaignRegistrations CampaignRegistration[]
+  chatParticipants      ChatParticipant[]
+  notifications         Notification[]
+  pointTransactions     PointTransaction[]
+
+  @@index([bloodType, isAvailable])
+  @@index([latitude, longitude])
+  @@map("donors")
+}
+
+model Patient {
+  id        String   @id @default(uuid())
+  deviceId  String   @unique @map("device_id")
+  name      String
+  mobile    String?
+  latitude  Float?
+  longitude Float?
+  fcmToken  String?  @map("fcm_token")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bloodRequests    BloodRequest[]
+  chatParticipants ChatParticipant[]
+  notifications    Notification[]
+
+  @@map("patients")
+}
+
+model BloodBank {
+  id            String          @id @default(uuid())
+  deviceId      String          @unique @map("device_id")
+  name          String
+  nameAr        String?         @map("name_ar")
+  phone         String?
+  email         String?
+  latitude      Float
+  longitude     Float
+  address       String?
+  city          String?
+  status        BloodBankStatus @default(PENDING)
+  licenseNumber String?         @map("license_number")
+  isActive      Boolean         @default(true) @map("is_active")
+  fcmToken      String?         @map("fcm_token")
+  approvedAt    DateTime?       @map("approved_at")
+  approvedById  String?         @map("approved_by_id")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  stockEntries   BloodStock[]
+  shortageAlerts ShortageAlert[]
+  campaigns      Campaign[]
+  bloodRequests  BloodRequest[]
+
+  @@index([status])
+  @@index([latitude, longitude])
+  @@map("blood_banks")
+}
+
+model BloodRequest {
+  id            String              @id @default(uuid())
+  patientId     String              @map("patient_id")
+  bloodType     BloodType           @map("blood_type")
+  bagsNeeded    Int                 @map("bags_needed")
+  bagsFulfilled Int                 @default(0) @map("bags_fulfilled")
+  urgency       BloodRequestUrgency @default(NORMAL)
+  status        BloodRequestStatus  @default(OPEN)
+  patientName   String              @map("patient_name")
+  hospitalName  String?             @map("hospital_name")
+  bloodBankId   String?             @map("blood_bank_id")
+  latitude      Float
+  longitude     Float
+  contactPhone  String?             @map("contact_phone")
+  notes         String?
+  shareToken    String?             @unique @map("share_token")
+  expiresAt     DateTime?           @map("expires_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  bloodBank      BloodBank?      @relation(fields: [bloodBankId], references: [id])
+  donationOffers DonationOffer[]
+
+  @@index([bloodType, status])
+  @@index([urgency, status])
+  @@index([latitude, longitude])
+  @@map("blood_requests")
+}
+
+model DonationOffer {
+  id             String              @id @default(uuid())
+  bloodRequestId String              @map("blood_request_id")
+  donorId        String              @map("donor_id")
+  status         DonationOfferStatus @default(PENDING)
+  message        String?
+  respondedAt    DateTime?           @map("responded_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  bloodRequest BloodRequest @relation(fields: [bloodRequestId], references: [id])
+  donor        Donor        @relation(fields: [donorId], references: [id])
+  donation     Donation?
+
+  @@unique([bloodRequestId, donorId])
+  @@index([status])
+  @@map("donation_offers")
+}
+
+model Donation {
+  id                String    @id @default(uuid())
+  donorId           String    @map("donor_id")
+  donationOfferId   String?   @unique @map("donation_offer_id")
+  bloodType         BloodType @map("blood_type")
+  bagsCount         Int       @default(1) @map("bags_count")
+  hospitalName      String?   @map("hospital_name")
+  notes             String?
+  pointsAwarded     Int       @default(0) @map("points_awarded")
+  donatedAt         DateTime  @default(now()) @map("donated_at")
+  verifiedByAdminId String?   @map("verified_by_admin_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  donor         Donor          @relation(fields: [donorId], references: [id])
+  donationOffer DonationOffer? @relation(fields: [donationOfferId], references: [id])
+
+  @@index([donorId])
+  @@index([donatedAt])
+  @@map("donations")
+}
+
+model BloodStock {
+  id          String     @id @default(uuid())
+  bloodBankId String     @map("blood_bank_id")
+  bloodType   BloodType  @map("blood_type")
+  bagsCount   Int        @map("bags_count")
+  stockLevel  StockLevel @default(ADEQUATE) @map("stock_level")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  bloodBank BloodBank @relation(fields: [bloodBankId], references: [id])
+
+  @@unique([bloodBankId, bloodType])
+  @@map("blood_stocks")
+}
+
+model ShortageAlert {
+  id          String    @id @default(uuid())
+  bloodBankId String    @map("blood_bank_id")
+  bloodType   BloodType @map("blood_type")
+  message     String?
+  isResolved  Boolean   @default(false) @map("is_resolved")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  bloodBank BloodBank @relation(fields: [bloodBankId], references: [id])
+
+  @@index([bloodType, isResolved])
+  @@map("shortage_alerts")
+}
+
+model Campaign {
+  id            String         @id @default(uuid())
+  bloodBankId   String         @map("blood_bank_id")
+  title         String
+  titleAr       String?        @map("title_ar")
+  description   String?
+  descriptionAr String?        @map("description_ar")
+  latitude      Float
+  longitude     Float
+  address       String?
+  startDate     DateTime       @map("start_date")
+  endDate       DateTime       @map("end_date")
+  targetBags    Int?           @map("target_bags")
+  collectedBags Int            @default(0) @map("collected_bags")
+  status        CampaignStatus @default(UPCOMING)
+  bloodTypes    BloodType[]    @map("blood_types")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  bloodBank     BloodBank              @relation(fields: [bloodBankId], references: [id])
+  registrations CampaignRegistration[]
+
+  @@index([status, startDate])
+  @@map("campaigns")
+}
+
+model CampaignRegistration {
+  id         String   @id @default(uuid())
+  campaignId String   @map("campaign_id")
+  donorId    String   @map("donor_id")
+  attended   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  donor    Donor    @relation(fields: [donorId], references: [id])
+
+  @@unique([campaignId, donorId])
+  @@map("campaign_registrations")
+}
+
+model DonorBadge {
+  id       String    @id @default(uuid())
+  donorId  String    @map("donor_id")
+  badge    BadgeType
+  earnedAt DateTime  @default(now()) @map("earned_at")
+
+  donor Donor @relation(fields: [donorId], references: [id])
+
+  @@unique([donorId, badge])
+  @@map("donor_badges")
+}
+
+model PointTransaction {
+  id          String   @id @default(uuid())
+  donorId     String   @map("donor_id")
+  points      Int
+  reason      String
+  referenceId String?  @map("reference_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  donor Donor @relation(fields: [donorId], references: [id])
+
+  @@index([donorId])
+  @@map("point_transactions")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  donorId   String?          @map("donor_id")
+  patientId String?          @map("patient_id")
+  type      NotificationType
+  title     String
+  titleAr   String?          @map("title_ar")
+  body      String
+  bodyAr    String?          @map("body_ar")
+  data      Json?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  donor   Donor?   @relation(fields: [donorId], references: [id])
+  patient Patient? @relation(fields: [patientId], references: [id])
+
+  @@index([donorId, isRead])
+  @@index([patientId, isRead])
+  @@map("notifications")
+}
+
+model ChatRoom {
+  id             String   @id @default(uuid())
+  bloodRequestId String?  @map("blood_request_id")
+  name           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+model ChatParticipant {
+  id         String    @id @default(uuid())
+  chatRoomId String    @map("chat_room_id")
+  donorId    String?   @map("donor_id")
+  patientId  String?   @map("patient_id")
+  lastReadAt DateTime? @map("last_read_at")
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
+  donor    Donor?   @relation(fields: [donorId], references: [id])
+  patient  Patient? @relation(fields: [patientId], references: [id])
+
+  @@unique([chatRoomId, donorId])
+  @@unique([chatRoomId, patientId])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id         String          @id @default(uuid())
+  chatRoomId String          @map("chat_room_id")
+  senderType UserRole        @map("sender_type")
+  senderId   String          @map("sender_id")
+  content    String
+  type       ChatMessageType @default(TEXT)
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
+
+  @@index([chatRoomId, createdAt])
+  @@map("chat_messages")
+}
+
+model SmsLog {
+  id             String   @id @default(uuid())
+  recipientPhone String   @map("recipient_phone")
+  message        String
+  status         String
+  provider       String?
+  referenceId    String?  @map("reference_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("sms_logs")
+}
+
+model AppSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+
+  @@map("app_settings")
+}

@@ -400,32 +400,6 @@ prisma/
 └── seed.ts                 # demo admins, donors, patients, banks, requests
 ```
 
----
 
-## CV Blurb
-
-Drop any of these straight onto your CV.
-
-### One-liner
-
-> **Sharyan — Blood Donation Platform Backend.** NestJS 11 · TypeScript · PostgreSQL/Prisma · Socket.io · Firebase FCM. Real-time donor/patient matching with geo-proximity search, atomic donation workflows, gamification (points + 10 badges), bilingual (EN/AR) notifications, and Swagger-documented REST + WebSocket APIs.
-
-### Two-sentence version
-
-> Designed and built a production-grade blood-donation backend in **NestJS + TypeScript** with a **PostgreSQL/Prisma** data layer, serving four user roles (admin, donor, patient, blood bank) across **18 modular features** including geo-proximity donor matching (Haversine), atomic donation-completion transactions, a gamification engine (points, badges, leaderboards), Firebase FCM push notifications, and Socket.io-based real-time chat.
-> Applied **SOLID principles**, layered architecture, and patterns such as Repository, Strategy, Facade, Observer, and State Machine; all endpoints are validated, guarded, and documented via Swagger/OpenAPI.
-
-### Bullet-point version
-
-- Built a **NestJS 11 / TypeScript / PostgreSQL / Prisma** backend for a real-time blood-donation platform matching donors, patients, and blood banks.
-- Designed **18 feature modules** with clear SRP boundaries; all services depend on injected abstractions (Prisma, Firebase, Geo, Compatibility) — testable and swappable.
-- Implemented **geo-proximity donor search** using the Haversine formula, respecting a 56-day minimum inter-donation interval.
-- Wrote an **atomic donation-completion flow** using `prisma.$transaction` to keep offer status, donation records, donor stats, and request fulfilment consistent.
-- Shipped a **gamification system** (100-point donations, 10 badge types, leaderboard, immutable point-transaction ledger).
-- Added **real-time chat** via Socket.io gateway with typing indicators and read receipts, plus **Firebase Cloud Messaging** push notifications (multicast + topic-based).
-- Dual auth strategy: **JWT + refresh rotation** (bcrypt-hashed refresh tokens) for admins, **device-ID header auth** for mobile users.
-- Full **Swagger/OpenAPI** docs, global validation pipe, `PrismaExceptionFilter`, response envelope interceptor, and bilingual (English/Arabic) content fields.
-
----
 
 <p align="center">Built with NestJS, Prisma, and ❤️ for saving lives.</p>

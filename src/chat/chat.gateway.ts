@@ -25,8 +25,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(client: Socket) {
-    const deviceId = client.handshake.auth?.deviceId;
-    const userType = client.handshake.auth?.userType;
+    const deviceId =
+      client.handshake.auth?.deviceId ||
+      (client.handshake.headers['x-device-id'] as string | undefined);
+    const rawUserType =
+      client.handshake.auth?.userType ||
+      (client.handshake.headers['x-user-type'] as string | undefined);
+    const userType = (rawUserType || '').toUpperCase();
 
     if (!deviceId || !userType) {
       client.disconnect();
@@ -72,12 +77,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { success: true };
   }
 
+  @SubscribeMessage('message')
+  async handleMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; content: string; type?: string },
+  ) {
+    return this.dispatchMessage(client, data);
+  }
+
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { roomId: string; content: string; type?: string },
   ) {
-    const message = await this.chatService.sendMessage(
+    return this.dispatchMessage(client, data);
+  }
+
+  private async dispatchMessage(
+    client: Socket,
+    data: { roomId: string; content: string; type?: string },
+  ) {
+    if (!client.data?.userId) {
+      return { error: 'Not authenticated' };
+    }
+    if (!data?.roomId || !data?.content) {
+      return { error: 'roomId and content are required' };
+    }
+
+    const saved = await this.chatService.sendMessage(
       data.roomId,
       client.data.userId,
       client.data.userType,
@@ -85,12 +112,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data.type || 'TEXT',
     );
 
-    this.server.to(`room:${data.roomId}`).emit('newMessage', {
-      ...message,
-      senderName: client.data.userName,
-    });
+    const payload = { ...saved, senderName: client.data.userName };
+    this.server.to(`room:${data.roomId}`).emit('message', payload);
+    this.server.to(`room:${data.roomId}`).emit('newMessage', payload);
 
-    return message;
+    return saved;
   }
 
   @SubscribeMessage('typing')

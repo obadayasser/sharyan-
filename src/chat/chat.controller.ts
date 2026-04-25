@@ -25,12 +25,14 @@ export class ChatController {
   @ApiSecurity('user-type')
   @ApiOperation({ summary: 'Create or get chat room for a blood request' })
   async createRoom(
-    @Body() body: { bloodRequestId: string; donorId: string; patientId: string },
+    @Body() body: { bloodRequestId: string },
+    @CurrentDevice() user: any,
+    @Req() req: any,
   ) {
     return this.chatService.createOrGetRoom(
       body.bloodRequestId,
-      body.donorId,
-      body.patientId,
+      user.id,
+      req.deviceUserType,
     );
   }
 

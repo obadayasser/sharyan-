@@ -6,15 +6,38 @@ import { paginate } from '../common/utils/pagination.util.js';
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createOrGetRoom(bloodRequestId: string, donorId: string, patientId: string) {
+  async createOrGetRoom(bloodRequestId: string, currentUserId: string, currentUserType: string) {
+    const bloodRequest = await this.prisma.bloodRequest.findUnique({
+      where: { id: bloodRequestId },
+      select: { id: true, patientId: true },
+    });
+    if (!bloodRequest) {
+      throw new NotFoundException('Blood request not found');
+    }
+
+    const type = (currentUserType || '').toUpperCase();
+    let donorId: string | null = null;
+    let patientId: string | null = null;
+
+    if (type === 'DONOR') {
+      donorId = currentUserId;
+      patientId = bloodRequest.patientId;
+    } else if (type === 'PATIENT') {
+      patientId = currentUserId;
+      if (patientId !== bloodRequest.patientId) {
+        throw new ForbiddenException('Patient does not own this blood request');
+      }
+    } else {
+      throw new ForbiddenException('Unsupported user type for chat');
+    }
+
     const existing = await this.prisma.chatRoom.findFirst({
       where: {
         bloodRequestId,
-        participants: {
-          every: {
-            OR: [{ donorId }, { patientId }],
-          },
-        },
+        AND: [
+          ...(donorId ? [{ participants: { some: { donorId } } }] : []),
+          ...(patientId ? [{ participants: { some: { patientId } } }] : []),
+        ],
       },
       include: { participants: true },
     });
@@ -26,8 +49,8 @@ export class ChatService {
         bloodRequestId,
         participants: {
           create: [
-            { donorId },
-            { patientId },
+            ...(donorId ? [{ donorId }] : []),
+            ...(patientId ? [{ patientId }] : []),
           ],
         },
       },
